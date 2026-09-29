@@ -8,22 +8,21 @@ const execAsync = promisify(exec);
 interface Preferences {
   superUser?: string;
   macPassword?: string;
-  ethernetDeviceName?: string;
 }
 
 export default function Command() {
   const preferences = getPreferenceValues<Preferences>();
-  const [isConnected, setIsConnected] = useCachedState<boolean>("ethernet_state", false);
+  const [isConnected, setIsConnected] = useCachedState<boolean>("proxy_state", false);
 
-  const ethernetDeviceName = preferences.ethernetDeviceName?.trim() || "USB 10/100/1G/2.5G LAN";
+  const LocalIP = "1.2.3.4"
   const menuIcon = Icon.Circle;
   const menuTitle = isConnected
-    ? `Ethernet: Connected (${ethernetDeviceName})`
-    : `Ethernet: Disconnected (${ethernetDeviceName})`;
+    ? `Proxy: Connected (${LocalIP})`
+    : `Proxy: Disconnected (${LocalIP})`;
 
   const handleToggle = async () => {
-    const nextState = !isConnected;
-    setIsConnected(nextState);
+    // const nextState = !isConnected;
+    // setIsConnected(nextState);
 
     let proxyStatus = "";
     try {
@@ -36,17 +35,30 @@ export default function Command() {
     }
 
     if (proxyStatus.toLowerCase() === "yes") {
-      console.log("Proxy is currently ENABLED");
+      console.log("CHANGING PROXY STATE: Disabling proxy");
+      await execAsync(
+        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setsecurewebproxystate Wi-Fi off" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+      );
+      await execAsync(
+        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setwebproxystate Wi-Fi off" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+      );
     } else {
-      console.log("Proxy is currently DISABLED");
+      console.log("CHANGING PROXY STATE: Enabling proxy");
+      await execAsync(
+        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setsecurewebproxy Wi-Fi localhost 8888" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+      );
+      await execAsync(
+        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setwebproxy Wi-Fi localhost 8888" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+      );
     }
 
-    console.log("PROXY_STATUS:", proxyStatus);
-    console.log("Toggling state to:", nextState ? "Connected" : "Disconnected");
+    setIsConnected(proxyStatus.toLowerCase() !== "yes");
+
+    // console.log("PROXY_STATUS:", proxyStatus);
+    // console.log("Toggling state to:", nextState ? "Connected" : "Disconnected");
     console.log("Loaded Preferences:", {
       superUser: preferences.superUser ?? "[Not set]",
-      macPassword: preferences.macPassword ? "******" : "[Not set]",
-      ethernetDeviceName: preferences.ethernetDeviceName ?? "[Not set]",
+      macPassword: preferences.macPassword ? "******" : "[Not set]"
     });
   };
 
@@ -58,7 +70,7 @@ export default function Command() {
       <MenuBarExtra.Item title={menuTitle} />
       <MenuBarExtra.Separator />
       <MenuBarExtra.Item
-        title={isConnected ? "Turn Ethernet Off" : "Turn Ethernet On"}
+        title={isConnected ? "Turn proxy Off" : "Turn proxy On"}
         icon={Icon.Power}
         onAction={handleToggle}
       />
