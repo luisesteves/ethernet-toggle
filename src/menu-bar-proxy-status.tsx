@@ -1,6 +1,11 @@
 import { MenuBarExtra, Icon, Color, openCommandPreferences, getPreferenceValues } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
 
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
+
 interface Preferences {
   superUser?: string;
   macPassword?: string;
@@ -17,9 +22,20 @@ export default function Command() {
     ? `Ethernet: Connected (${ethernetDeviceName})`
     : `Ethernet: Disconnected (${ethernetDeviceName})`;
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
     const nextState = !isConnected;
     setIsConnected(nextState);
+
+    let proxyStatus = "";
+    try {
+      const { stdout } = await execAsync(
+        `/usr/sbin/networksetup -getwebproxy "Wi-Fi" | grep "^Enabled" | awk '{ print $2 }'`
+      );
+      proxyStatus = stdout.trim();
+    } catch (error) {
+      console.error("Error reading proxy status:", error);
+    }
+    console.log("PROXY_STATUS:", proxyStatus);
 
     console.log("Toggling state to:", nextState ? "Connected" : "Disconnected");
     console.log("Loaded Preferences:", {
