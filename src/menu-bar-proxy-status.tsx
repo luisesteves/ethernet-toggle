@@ -28,20 +28,26 @@ export default function Command() {
 
     let proxyStatus = "";
     try {
-      const { stdout } = await execAsync(
-        `/usr/sbin/networksetup -getwebproxy "Wi-Fi" | grep "^Enabled" | awk '{ print $2 }'`
-      );
-      proxyStatus = stdout.trim();
+      const { stdout } = await execAsync(`/usr/sbin/networksetup -getwebproxy "Wi-Fi"`);
+      const match = stdout.match(/Enabled:\s*(Yes|No)/i);
+      proxyStatus = match ? match[1].toLowerCase() : "unknown";
+      console.log("[proxy-menu-bar] read proxy status", {
+        stdout: stdout.trim(),
+        proxyStatus,
+      });
     } catch (error) {
-      console.error("Error reading proxy status:", error);
+      console.error("[proxy-menu-bar] Error reading proxy status:", error);
+      proxyStatus = "error";
     }
-    console.log("PROXY_STATUS:", proxyStatus);
 
-    console.log("Toggling state to:", nextState ? "Connected" : "Disconnected");
-    console.log("Loaded Preferences:", {
-      superUser: preferences.superUser ?? "[Not set]",
-      macPassword: preferences.macPassword ? "******" : "[Not set]",
-      ethernetDeviceName: preferences.ethernetDeviceName ?? "[Not set]",
+    console.log("[proxy-menu-bar] toggle state", {
+      nextState: nextState ? "Connected" : "Disconnected",
+      proxyStatus,
+      preferences: {
+        superUser: preferences.superUser ?? "[Not set]",
+        macPassword: preferences.macPassword ? "******" : "[Not set]",
+        ethernetDeviceName: preferences.ethernetDeviceName ?? "[Not set]",
+      },
     });
   };
 
