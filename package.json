@@ -14,18 +14,7 @@
   "license": "MIT",
   "commands": [
     {
-      "name": "toggle-ethernet",
-      "title": "Toggle Ethernet",
-      "description": "Toggle the ethernet state",
-      "mode": "no-view"
-    },
-    {
-    "name": "toggle-proxy",
-    "title": "Toggle Proxy",
-    "mode": "no-view"
-  },
-    {
-      "name": "menu-bar",
+      "name": "menu-bar-ethernet-status",
       "title": "Ethernet Status",
       "description": "Shows the Ethernet status in the menu bar",
       "mode": "menu-bar"
