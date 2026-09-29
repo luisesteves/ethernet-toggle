@@ -32,8 +32,23 @@ export default function Command() {
     }
   }
 
+  async function checkProxyState() {
+    try {
+      const { stdout } = await execAsync(
+        `/usr/sbin/networksetup -getwebproxy "Wi-Fi" | grep "^Enabled" | awk '{ print $2 }'`
+      );
+      setIsConnected(stdout.trim().toLowerCase() === "yes");
+    } catch (error) {
+      console.error("Error reading proxy status:", error);
+    }
+  }
+
+  async function refreshAll() {
+    await Promise.all([checkProxyState(), updateLocalIp()]);
+  }
+
   useEffect(() => {
-    void updateLocalIp();
+    void refreshAll();
   }, []);
 
   const displayIp = localIp || "No IP";
@@ -71,8 +86,7 @@ export default function Command() {
       );
     }
 
-    setIsConnected(proxyStatus.toLowerCase() !== "yes");
-    await updateLocalIp();
+    await refreshAll();
 
     console.log("Loaded Preferences:", {
       superUser: preferences.superUser ?? "[Not set]",
@@ -92,7 +106,7 @@ export default function Command() {
         icon={Icon.Power}
         onAction={handleToggle}
       />
-      <MenuBarExtra.Item title="Refresh Status" icon={Icon.Redo} onAction={() => void updateLocalIp()} />
+      <MenuBarExtra.Item title="Refresh Status" icon={Icon.Redo} onAction={() => void refreshAll()} />
       <MenuBarExtra.Item title="Extension Settings" icon={Icon.Gear} onAction={openCommandPreferences} />
     </MenuBarExtra>
   );
