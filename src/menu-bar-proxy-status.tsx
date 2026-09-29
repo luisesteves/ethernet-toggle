@@ -88,7 +88,7 @@ export default function Command() {
     void checkNetworkAndProxyState();
     const interval = setInterval(() => {
       void checkNetworkAndProxyState();
-    }, 2000);
+    }, 7000);
 
     return () => clearInterval(interval);
   }, []);

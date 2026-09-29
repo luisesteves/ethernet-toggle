@@ -20,18 +20,21 @@
       "mode": "no-view"
     },
     {
+    "name": "toggle-proxy",
+    "title": "Toggle Proxy",
+    "mode": "no-view"
+  },
+    {
       "name": "menu-bar",
       "title": "Ethernet Status",
       "description": "Shows the Ethernet status in the menu bar",
-      "mode": "menu-bar",
-      "interval": "1m"
+      "mode": "menu-bar"
     },
     {
       "name": "menu-bar-proxy-status",
       "title": "Proxy Status",
       "description": "Shows the Proxy status in the menu bar",
-      "mode": "menu-bar",
-      "interval": "1m"
+      "mode": "menu-bar"
     }
   ],
   "tools": [],
