@@ -1,4 +1,4 @@
-import { MenuBarExtra, Icon, Color, openCommandPreferences, getPreferenceValues } from "@raycast/api";
+import { MenuBarExtra, Icon, Color, openCommandPreferences, getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -58,6 +58,17 @@ export default function Command() {
     : `Proxy: Disconnected (${displayIp})`;
 
   const handleToggle = async () => {
+    // Check if user credentials are set before attempting privileged execution
+    if (!preferences.superUser || !preferences.macPassword) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Missing Credentials",
+        message: "Please enter your Super User and Password in Preferences.",
+      });
+      await openCommandPreferences();
+      return;
+    }
+
     let proxyStatus = "";
     try {
       const { stdout } = await execAsync(
@@ -68,36 +79,39 @@ export default function Command() {
       console.error("Error reading proxy status:", error);
     }
 
-    if (proxyStatus.toLowerCase() === "yes") {
-      console.log("CHANGING PROXY STATE: Disabling proxy");
-      await execAsync(
-        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setsecurewebproxystate Wi-Fi off" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
-      );
-      await execAsync(
-        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setwebproxystate Wi-Fi off" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
-      );
-    } else {
-      console.log("CHANGING PROXY STATE: Enabling proxy");
-      await execAsync(
-        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setsecurewebproxy Wi-Fi localhost 8888" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
-      );
-      await execAsync(
-        `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setwebproxy Wi-Fi localhost 8888" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
-      );
+    try {
+      if (proxyStatus.toLowerCase() === "yes") {
+        console.log("CHANGING PROXY STATE: Disabling proxy");
+        await execAsync(
+          `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setsecurewebproxystate Wi-Fi off" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+        );
+        await execAsync(
+          `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setwebproxystate Wi-Fi off" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+        );
+      } else {
+        console.log("CHANGING PROXY STATE: Enabling proxy");
+        await execAsync(
+          `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setsecurewebproxy Wi-Fi localhost 8888" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+        );
+        await execAsync(
+          `/usr/bin/osascript -e 'do shell script "/usr/sbin/networksetup -setwebproxy Wi-Fi localhost 8888" user name "${preferences.superUser}" password "${preferences.macPassword}" with administrator privileges'`
+        );
+      }
+    } catch (error: any) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Authentication / Execution Error",
+        message: error?.message || String(error),
+      });
     }
 
     await refreshAll();
-
-    console.log("Loaded Preferences:", {
-      superUser: preferences.superUser ?? "[Not set]",
-      macPassword: preferences.macPassword ? "******" : "[Not set]"
-    });
   };
 
   return (
     <MenuBarExtra
       icon={{ source: menuIcon, tintColor: isConnected ? Color.Red : Color.Green }}
-      tooltip="Ethernet status"
+      tooltip="Proxy status"
     >
       <MenuBarExtra.Item title={menuTitle} />
       <MenuBarExtra.Separator />
