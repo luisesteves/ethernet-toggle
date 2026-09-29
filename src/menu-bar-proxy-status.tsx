@@ -2,6 +2,7 @@ import { MenuBarExtra, Icon, Color, openCommandPreferences, getPreferenceValues 
 import { useCachedState } from "@raycast/utils";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { useEffect } from "react";
 
 const execAsync = promisify(exec);
 
@@ -13,17 +14,35 @@ interface Preferences {
 export default function Command() {
   const preferences = getPreferenceValues<Preferences>();
   const [isConnected, setIsConnected] = useCachedState<boolean>("proxy_state", false);
+  const [localIp, setLocalIp] = useCachedState<string>("local_ip", "");
 
-  const LocalIP = "1.2.3.4"
+  async function updateLocalIp() {
+    try {
+      const { stdout: deviceOutput } = await execAsync(
+        `/usr/sbin/networksetup -listallhardwareports | awk '/Hardware Port: Wi-Fi/ { getline; print $2 }'`
+      );
+      const wifiDevice = deviceOutput.trim();
+
+      if (wifiDevice) {
+        const { stdout: ipOutput } = await execAsync(`/usr/sbin/ipconfig getifaddr "${wifiDevice}"`);
+        setLocalIp(ipOutput.trim());
+      }
+    } catch {
+      setLocalIp("");
+    }
+  }
+
+  useEffect(() => {
+    void updateLocalIp();
+  }, []);
+
+  const displayIp = localIp || "No IP";
   const menuIcon = Icon.Circle;
   const menuTitle = isConnected
-    ? `Proxy: Connected (${LocalIP})`
-    : `Proxy: Disconnected (${LocalIP})`;
+    ? `Proxy: Connected (${displayIp})`
+    : `Proxy: Disconnected (${displayIp})`;
 
   const handleToggle = async () => {
-    // const nextState = !isConnected;
-    // setIsConnected(nextState);
-
     let proxyStatus = "";
     try {
       const { stdout } = await execAsync(
@@ -53,9 +72,8 @@ export default function Command() {
     }
 
     setIsConnected(proxyStatus.toLowerCase() !== "yes");
+    await updateLocalIp();
 
-    // console.log("PROXY_STATUS:", proxyStatus);
-    // console.log("Toggling state to:", nextState ? "Connected" : "Disconnected");
     console.log("Loaded Preferences:", {
       superUser: preferences.superUser ?? "[Not set]",
       macPassword: preferences.macPassword ? "******" : "[Not set]"
@@ -74,7 +92,7 @@ export default function Command() {
         icon={Icon.Power}
         onAction={handleToggle}
       />
-      <MenuBarExtra.Item title="Refresh Status" icon={Icon.Redo} onAction={() => {}} />
+      <MenuBarExtra.Item title="Refresh Status" icon={Icon.Redo} onAction={() => void updateLocalIp()} />
       <MenuBarExtra.Item title="Extension Settings" icon={Icon.Gear} onAction={openCommandPreferences} />
     </MenuBarExtra>
   );
