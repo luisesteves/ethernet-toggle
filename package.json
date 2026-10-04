@@ -24,6 +24,29 @@
       "title": "Proxy Status",
       "description": "Shows the Proxy status in the menu bar",
       "mode": "menu-bar"
+    },
+    {
+      "name": "install-mitmproxy-cert",
+      "title": "Install Mitmproxy Cert",
+      "description": "Installs mitmproxy CA certificate into iOS Simulators keychain",
+      "mode": "menu-bar"
+    },
+    {
+      "name": "test",
+      "title": "Test",
+      "description": "Test command",
+      "mode": "menu-bar",
+      "interval": "10s",
+      "preferences": [
+        {
+          "name": "derivedDataPath",
+          "type": "textfield",
+          "title": "Derived Data Path",
+          "description": "Path to the derived data directory",
+          "required": true,
+          "placeholder": "Derived data path"
+        }
+      ]
     }
   ],
   "tools": [],
@@ -53,7 +76,7 @@
       "type": "textfield",
       "title": "Super User",
       "description": "Super user name for network administration",
-      "required": false,
+      "required": true,
       "placeholder": "Super user"
     },
     {
@@ -61,7 +84,7 @@
       "type": "password",
       "title": "Password",
       "description": "System password for network configuration",
-      "required": false,
+      "required": true,
       "placeholder": "System password"
     },
     {
@@ -69,7 +92,7 @@
       "type": "textfield",
       "title": "Ethernet Device Name",
       "description": "Name of the Ethernet network interface (e.g., en0)",
-      "required": false,
+      "required": true,
       "placeholder": "Ethernet device name"
     }
   ]

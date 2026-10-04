@@ -125,7 +125,7 @@ export default function Command() {
   return (
     <MenuBarExtra icon={{ source: menuIcon, tintColor: Color.Green }} isLoading={loading} tooltip="Ethernet status">
       <MenuBarExtra.Item title={menuTitle} />
-      <MenuBarExtra.Separator />
+      <MenuBarExtra.Section />
       <MenuBarExtra.Item title={isConnected ? "Turn Ethernet Off" : "Turn Ethernet On"} icon={Icon.Power} onAction={toggleEthernetState} />
       <MenuBarExtra.Item title="Refresh Status" icon={Icon.Redo} onAction={() => checkEthernetState()} />
       <MenuBarExtra.Item title="Extension Settings" icon={Icon.Gear} onAction={openCommandPreferences} />

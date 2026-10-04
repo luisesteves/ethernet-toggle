@@ -114,7 +114,7 @@ export default function Command() {
       tooltip="Proxy status"
     >
       <MenuBarExtra.Item title={menuTitle} />
-      <MenuBarExtra.Separator />
+      <MenuBarExtra.Section />
       <MenuBarExtra.Item
         title={isConnected ? "Turn proxy Off" : "Turn proxy On"}
         icon={Icon.Power}
