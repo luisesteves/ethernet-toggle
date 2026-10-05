@@ -5,7 +5,7 @@ import {
     showHUD,
     showToast,
     Toast,
-    Clipboard,
+    getSelectedText,
 } from "@raycast/api";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -20,10 +20,31 @@ export default function Command() {
     const certExists = existsSync(certPath);
 
     async function getBootedSimulators() {
-
         const uuidRegex = /[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}/gi;
         const { stdout: bootedStdout } = await exec("xcrun simctl list devices booted");
         return bootedStdout.match(uuidRegex) || [];
+    }
+
+    async function getCleanSelectedText() {
+        console.log("[Utility] Attempting to retrieve selected text...");
+
+        try {
+            const selectedText = await getSelectedText();
+            const trimmedText = selectedText?.trim();
+
+            if (!trimmedText) {
+                console.warn("[Utility] Selected text is empty.");
+                showHUD("❌ No text selected");
+                return null;
+            }
+
+            console.log(`[Utility] Successfully retrieved selected text (length: ${trimmedText.length} characters)`);
+            return trimmedText;
+        } catch (error) {
+            console.error("[Utility] Failed to get selected text:", error);
+            showHUD("❌ No text selected or accessibility permission needed");
+            return null;
+        }
     }
 
     // 1. Install mitmproxy CA Certificate
@@ -36,10 +57,10 @@ export default function Command() {
             return;
         }
 
-            const toast = await showToast({
-                style: Toast.Style.Animated,
-                title: "Installing Certificate...",
-            });
+        const toast = await showToast({
+            style: Toast.Style.Animated,
+            title: "Installing Certificate...",
+        });
 
         try {
             const bootedSimulators = await getBootedSimulators();
@@ -72,8 +93,7 @@ export default function Command() {
     async function openUrlFromClipboard() {
         console.log("[Simulator Utility] Triggered: openUrlFromClipboard()");
 
-        const clipboardText = await Clipboard.readText();
-        const url = clipboardText?.trim();
+        const url = await getCleanSelectedText();
 
         if (!url) {
             showHUD("❌ Clipboard is empty or contains no text");
@@ -106,7 +126,7 @@ export default function Command() {
                 await exec(`xcrun simctl openurl "${simUuid}" "${targetUrl}"`);
             }
 
-            console.log(`[Simulator Utility] Opened "${targetUrl}" in ${bootedSimulators.length} booted simulator(s)`);
+            console.log(`[Simulator Utility] Opened "\({targetUrl}" in\){bootedSimulators.length} booted simulator(s)`);
             toast.style = Toast.Style.Success;
             toast.title = `Opened in ${bootedSimulators.length} simulator(s)`;
             showHUD(`✅ Opened URL in ${bootedSimulators.length} simulator(s)`);
@@ -121,6 +141,14 @@ export default function Command() {
     async function syncClipboardToSimulators() {
         console.log("[Simulator Utility] Triggered: syncClipboardToSimulators()");
 
+        const clipboardText = await getCleanSelectedText();
+        if (!clipboardText) {
+            console.warn("[Simulator Utility] Clipboard is empty or text could not be read.");
+            showHUD("❌ Clipboard is empty");
+            return;
+        }
+        console.log(`[Simulator Utility] Clipboard text retrieved successfully (length: ${clipboardText.length} characters)`);
+
         const toast = await showToast({
             style: Toast.Style.Animated,
             title: "Syncing Clipboard to Simulators...",
@@ -128,6 +156,7 @@ export default function Command() {
 
         try {
             const bootedSimulators = await getBootedSimulators();
+            console.log(`[Simulator Utility] Found ${bootedSimulators.length} booted simulator(s):`, bootedSimulators);
 
             if (bootedSimulators.length === 0) {
                 console.warn("[Simulator Utility] No booted simulators found.");
@@ -137,19 +166,30 @@ export default function Command() {
                 return;
             }
 
-            // Read clipboard content using pbpaste via shell or Raycast's Clipboard API
-            const { stdout: clipboardContent } = await exec("pbpaste");
-
             for (const simUuid of bootedSimulators) {
-                await exec(`xcrun simctl pbcopy "${simUuid}"`);
+                console.log(`[Simulator Utility] Pushing clipboard to simulator: ${simUuid}`);
+                await new Promise((resolve, reject) => {
+                    const child = execCallback(`xcrun simctl pbcopy "${simUuid}"`, (error) => {
+                        if (error) {
+                            console.error(`[Simulator Utility] Failed to push clipboard to ${simUuid}:`, error);
+                            reject(error);
+                        } else {
+                            console.log(`[Simulator Utility] Successfully synced clipboard to simulator: ${simUuid}`);
+                            resolve(true);
+                        }
+                    });
+
+                    child.stdin?.write(clipboardText);
+                    child.stdin?.end();
+                });
             }
 
-            console.log(`[Simulator Utility] Sent clipboard to ${bootedSimulators.length} booted simulator(s)`);
+            console.log(`[Simulator Utility] Completed syncing clipboard to all ${bootedSimulators.length} booted simulator(s)`);
             toast.style = Toast.Style.Success;
             toast.title = `Synced to ${bootedSimulators.length} simulator(s)`;
             showHUD(`✅ Sent clipboard to ${bootedSimulators.length} booted simulator(s)`);
         } catch (error) {
-            console.log("[Simulator Utility] Sync clipboard error:", error);
+            console.error("[Simulator Utility] Sync clipboard execution error:", error);
             toast.style = Toast.Style.Failure;
             toast.title = "Failed to sync clipboard";
             showHUD(`❌ Failed to sync clipboard: ${(error as Error).message}`);
@@ -166,26 +206,26 @@ export default function Command() {
             tooltip="Simulator Utility"
         >
             <MenuBarExtra.Item
-                title={certExists ? "Cert Status: Found" : "Cert Status: Not Found"}
-                icon={certExists ? Icon.CheckCircle : Icon.XMarkCircle}
+                title={"All booted simulators"}
+                icon={Icon.Monitor}
             />
 
             <MenuBarExtra.Section />
 
             <MenuBarExtra.Item
-                title="Install Cert in Simulators"
+                title="Install Certificate"
                 icon={Icon.Key}
                 onAction={installMitmproxyCert}
             />
 
             <MenuBarExtra.Item
-                title="Open URL from Clipboard"
+                title="Open URL from Selected Text"
                 icon={Icon.Clipboard}
                 onAction={openUrlFromClipboard}
             />
 
             <MenuBarExtra.Item
-                title="Send clipboard to booted simulators"
+                title="Send selected text"
                 icon={Icon.Clipboard}
                 onAction={syncClipboardToSimulators}
             />

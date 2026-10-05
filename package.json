@@ -26,17 +26,16 @@
       "mode": "menu-bar"
     },
     {
-      "name": "install-mitmproxy-cert",
-      "title": "Install Mitmproxy Cert",
-      "description": "Installs mitmproxy CA certificate into iOS Simulators keychain",
+      "name": "simulator-utility",
+      "title": "Simulator Utility",
+      "description": "Utility for managing iOS simulators",
       "mode": "menu-bar"
     },
     {
-      "name": "test",
-      "title": "Test",
-      "description": "Test command",
+      "name": "derived-data",
+      "title": "Derived data utility",
+      "description": "Utility for managing derived data",
       "mode": "menu-bar",
-      "interval": "10s",
       "preferences": [
         {
           "name": "derivedDataPath",
