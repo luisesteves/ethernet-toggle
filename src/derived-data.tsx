@@ -8,6 +8,7 @@ import {
   showToast,
   Toast,
 } from "@raycast/api";
+import { useState } from "react";
 import { rm } from "fs/promises";
 import { existsSync } from "fs";
 import { resolve } from "path";
@@ -17,7 +18,9 @@ interface CommandPreferences {
 }
 
 export default function Command() {
-  // Read preference value directly during render—no useState/useEffect required
+  const [isRemovingDerivedData, setIsRemovingDerivedData] = useState(false);
+  const [didClearDerivedData, setDidClearDerivedData] = useState(false);
+
   let derivedDataPath: string | undefined;
 
   try {
@@ -34,16 +37,29 @@ export default function Command() {
       return;
     }
 
+    if (isRemovingDerivedData) {
+      return;
+    }
+
     const cleanedPath = derivedDataPath.trim().replace(/^["']|["']$/g, "");
     const homeDir = process.env.HOME || "";
     const expandedPath = cleanedPath.startsWith("~")
       ? cleanedPath.replace("~", homeDir)
       : resolve(cleanedPath);
-
+    console.log("Derived data clear attempt", {
+      rawPath: derivedDataPath,
+      cleanedPath,
+      expandedPath,
+      homeDir,
+      exists: existsSync(expandedPath),
+    });
     if (!existsSync(expandedPath)) {
       showHUD("❌ Directory does not exist");
       return;
     }
+
+    setIsRemovingDerivedData(true);
+    setDidClearDerivedData(false);
 
     try {
       await showToast({
@@ -53,9 +69,13 @@ export default function Command() {
 
       await rm(expandedPath, { recursive: true, force: true });
 
+      setDidClearDerivedData(true);
       showHUD("✅ Derived Data cleared successfully");
     } catch (error) {
+      setDidClearDerivedData(false);
       showHUD(`❌ Deletion failed: ${(error as Error).message}`);
+    } finally {
+      setIsRemovingDerivedData(false);
     }
   }
 
@@ -63,10 +83,18 @@ export default function Command() {
     <MenuBarExtra
       icon={{
         source: Icon.Box,
-        tintColor: derivedDataPath ? Color.Green : Color.Red,
+        tintColor: isRemovingDerivedData
+          ? Color.Yellow
+          : didClearDerivedData
+            ? Color.Green
+            : derivedDataPath
+              ? Color.Blue
+              : Color.Red,
       }}
-      isLoading={false}
-      tooltip="Xcode Utility"
+      isLoading={isRemovingDerivedData}
+      tooltip={
+        isRemovingDerivedData ? "Clearing Derived Data..." : "Xcode Utility"
+      }
     >
       {!derivedDataPath ? (
         <MenuBarExtra.Item
@@ -78,7 +106,9 @@ export default function Command() {
       )}
       <MenuBarExtra.Section />
       <MenuBarExtra.Item
-        title="Clear Derived Data"
+        title={
+          isRemovingDerivedData ? "Clearing Derived Data..." : "Clear Derived Data"
+        }
         icon={Icon.Trash}
         onAction={clearDerivedData}
       />
