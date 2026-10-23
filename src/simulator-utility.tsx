@@ -26,25 +26,35 @@ export default function Command() {
     }
 
     async function getCleanSelectedText() {
-        console.log("[Utility] Attempting to retrieve selected text...");
+        console.log("[Utility] Attempting to retrieve selected text or clipboard content...");
+
+        let selectedText: string | undefined;
+        try {
+            selectedText = await getSelectedText();
+        } catch (error) {
+            console.warn("[Utility] Unable to read selected text from frontmost app, falling back to clipboard.", error);
+        }
+
+        const trimmedSelectedText = selectedText?.trim();
+        if (trimmedSelectedText) {
+            console.log(`[Utility] Successfully retrieved selected text (length: ${trimmedSelectedText.length} characters)`);
+            return trimmedSelectedText;
+        }
 
         try {
-            const selectedText = await getSelectedText();
-            const trimmedText = selectedText?.trim();
-
-            if (!trimmedText) {
-                console.warn("[Utility] Selected text is empty.");
-                showHUD("❌ No text selected");
-                return null;
+            const { stdout: clipboardText } = await exec("pbpaste");
+            const trimmedClipboardText = clipboardText.trim();
+            if (trimmedClipboardText) {
+                console.log(`[Utility] Using clipboard content as fallback (length: ${trimmedClipboardText.length} characters)`);
+                return trimmedClipboardText;
             }
-
-            console.log(`[Utility] Successfully retrieved selected text (length: ${trimmedText.length} characters)`);
-            return trimmedText;
         } catch (error) {
-            console.error("[Utility] Failed to get selected text:", error);
-            showHUD("❌ No text selected or accessibility permission needed");
-            return null;
+            console.error("[Utility] Failed to read clipboard content:", error);
         }
+
+        console.warn("[Utility] No selected text or clipboard content available.");
+        showHUD("❌ No text selected and clipboard is empty");
+        return null;
     }
 
     // 1. Install mitmproxy CA Certificate
@@ -141,13 +151,19 @@ export default function Command() {
     async function syncClipboardToSimulators() {
         console.log("[Simulator Utility] Triggered: syncClipboardToSimulators()");
 
-        const clipboardText = await getCleanSelectedText();
-        if (!clipboardText) {
+        const cleanText = await getCleanSelectedText();
+        if (!cleanText) {
             console.warn("[Simulator Utility] Clipboard is empty or text could not be read.");
-            showHUD("❌ Clipboard is empty");
+            showHUD("❌ Clean Text is empty");
             return;
+        } else {
+            console.log(`[Simulator Utility] Clean Text retrieved:`);
+            console.log(`[Simulator Utility] ---------------------`);
+            console.log(`${cleanText}`);
+            console.log(`[Simulator Utility] ---------------------`);
         }
-        console.log(`[Simulator Utility] Clipboard text retrieved successfully (length: ${clipboardText.length} characters)`);
+
+        console.log(`[Simulator Utility] Clipboard text retrieved successfully (length: ${cleanText.length} characters)`);
 
         const toast = await showToast({
             style: Toast.Style.Animated,
@@ -179,7 +195,7 @@ export default function Command() {
                         }
                     });
 
-                    child.stdin?.write(clipboardText);
+                    child.stdin?.write(cleanText);
                     child.stdin?.end();
                 });
             }
@@ -219,13 +235,13 @@ export default function Command() {
             />
 
             <MenuBarExtra.Item
-                title="Open URL from Selected Text"
+                title="Open URL"
                 icon={Icon.Clipboard}
                 onAction={openUrlFromClipboard}
             />
 
             <MenuBarExtra.Item
-                title="Send selected text"
+                title="Mac -> Simulator"
                 icon={Icon.Clipboard}
                 onAction={syncClipboardToSimulators}
             />
