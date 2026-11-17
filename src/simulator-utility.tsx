@@ -136,7 +136,9 @@ export default function Command() {
                 await exec(`xcrun simctl openurl "${simUuid}" "${targetUrl}"`);
             }
 
-            console.log(`[Simulator Utility] Opened "\({targetUrl}" in\){bootedSimulators.length} booted simulator(s)`);
+            console.log(
+                `[Simulator Utility] Opened "${targetUrl}" in ${bootedSimulators.length} booted simulator(s)`,
+            );
             toast.style = Toast.Style.Success;
             toast.title = `Opened in ${bootedSimulators.length} simulator(s)`;
             showHUD(`✅ Opened URL in ${bootedSimulators.length} simulator(s)`);
@@ -212,6 +214,48 @@ export default function Command() {
         }
     }
 
+    async function syncClipboardToMac() {
+        console.log("[Simulator Utility] Triggered: syncClipboardToMac()");
+
+        const toast = await showToast({
+            style: Toast.Style.Animated,
+            title: "Syncing Clipboard to Mac...",
+        });
+
+        try {
+            const bootedSimulators = await getBootedSimulators();
+            console.log(`[Simulator Utility] Found ${bootedSimulators.length} booted simulator(s):`, bootedSimulators);
+
+            if (bootedSimulators.length === 0) {
+                console.warn("[Simulator Utility] No booted simulators found.");
+                toast.style = Toast.Style.Failure;
+                toast.title = "No booted simulators found";
+                showHUD("❌ No booted simulators found");
+                return;
+            }
+
+            for (const simUuid of bootedSimulators) {
+                console.log(`[Simulator Utility] Fetching clipboard from simulator: ${simUuid}`);
+                try {
+                    await exec(`xcrun simctl pbpaste "${simUuid}" | pbcopy`);
+                    console.log(`[Simulator Utility] Successfully copied clipboard from simulator: ${simUuid}`);
+                } catch (error) {
+                    console.error(`[Simulator Utility] Failed to read clipboard from ${simUuid}:`, error);
+                }
+            }
+
+            console.log(`[Simulator Utility] Completed syncing clipboard to all ${bootedSimulators.length} booted simulator(s)`);
+            toast.style = Toast.Style.Success;
+            toast.title = `Synced to ${bootedSimulators.length} simulator(s)`;
+            showHUD(`✅ Sent clipboard to ${bootedSimulators.length} booted simulator(s)`);
+        } catch (error) {
+            console.error("[Simulator Utility] Sync clipboard execution error:", error);
+            toast.style = Toast.Style.Failure;
+            toast.title = "Failed to sync clipboard";
+            showHUD(`❌ Failed to sync clipboard: ${(error as Error).message}`);
+        }
+    }
+
     return (
         <MenuBarExtra
             icon={{
@@ -244,6 +288,12 @@ export default function Command() {
                 title="Mac -> Simulator"
                 icon={Icon.Clipboard}
                 onAction={syncClipboardToSimulators}
+            />
+
+            <MenuBarExtra.Item
+                title="Simulator -> Mac"
+                icon={Icon.Clipboard}
+                onAction={syncClipboardToMac}
             />
         </MenuBarExtra>
     );
